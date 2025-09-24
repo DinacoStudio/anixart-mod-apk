@@ -3,7 +3,7 @@ name: Anixart APK Rebuild
 on:
   schedule:
     - cron: '0 * * * *' # Запуск каждый час
-  workflow_dispatch: # Ручной запуск
+  workflow_dispatch:
 
 jobs:
   rebuild-apk:
@@ -15,10 +15,9 @@ jobs:
           sudo apt update
           sudo apt install -y default-jre zipalign wget unzip
 
-      - name: Загрузка apktool.jar и keystore
+      - name: Загрузка apktool.jar
         run: |
           wget -O apktool.jar https://raw.githubusercontent.com/iBotPeaches/Apktool/master/brut.apktool/apktool-cli/build/libs/apktool-cli-all.jar
-          echo "Создай файл keystore вручную и добавь его в корень репозитория под именем dinaco"
 
       - name: Скачивание APK
         run: wget -O orig.apk https://dl.anixart-app.com/anixart.apk
