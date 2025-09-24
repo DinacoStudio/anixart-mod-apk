@@ -15,13 +15,16 @@ jobs:
           sudo apt update
           sudo apt install -y default-jre zipalign wget unzip
 
-      - name: Скачивание apk
+      - name: Загрузка apktool.jar и keystore
         run: |
-          wget -O orig.apk https://dl.anixart-app.com/anixart.apk
+          wget -O apktool.jar https://raw.githubusercontent.com/iBotPeaches/Apktool/master/brut.apktool/apktool-cli/build/libs/apktool-cli-all.jar
+          echo "Создай файл keystore вручную и добавь его в корень репозитория под именем dinaco"
 
-      - name: Распаковка apk
-        run: |
-          java -jar apktool.jar d orig.apk -o anixart
+      - name: Скачивание APK
+        run: wget -O orig.apk https://dl.anixart-app.com/anixart.apk
+
+      - name: Распаковка APK
+        run: java -jar apktool.jar d orig.apk -o anixart
 
       - name: Получение версии
         id: version_check
@@ -30,7 +33,6 @@ jobs:
           echo "version=$version" >> $GITHUB_OUTPUT
 
       - name: Сравнение с предыдущей версией
-        id: compare_version
         run: |
           if [ -f last_version.txt ]; then
             last=$(cat last_version.txt)
@@ -58,12 +60,10 @@ anixart/smali_classes2/com/swiftsoft/anixartd/Prefs.smali
 --v1-signing-enabled true --v2-signing-enabled true build_aligned.apk
 
       - name: Проверка APK
-        run: |
-          apksigner verify build_aligned.apk
+        run: apksigner verify build_aligned.apk
 
       - name: Сохранение новой версии
-        run: |
-          echo "${{ steps.version_check.outputs.version }}" > last_version.txt
+        run: echo "${{ steps.version_check.outputs.version }}" > last_version.txt
 
       - name: Загрузка артефакта
         uses: actions/upload-artifact@v3
