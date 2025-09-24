@@ -1,0 +1,70 @@
+name: Anixart APK Rebuild
+
+on:
+  schedule:
+    - cron: '0 * * * *' # Проверка каждый час
+  workflow_dispatch: # Возможность ручного запуска
+
+jobs:
+  rebuild-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Установка зависимостей
+        run: |
+          sudo apt update
+          sudo apt install -y default-jre zipalign wget unzip
+
+      - name: Скачивание apk
+        run: |
+          wget -O orig.apk https://dl.anixart-app.com/anixart.apk
+
+      - name: Проверка версии
+        id: version_check
+        run: |
+          java -jar apktool.jar d orig.apk -o anixart
+          version=$(grep version anixart/apktool.yml | head -n1 | awk '{print $2}')
+          echo "version=$version" >> $GITHUB_OUTPUT
+
+      - name: Проверка предыдущей версии
+        id: compare_version
+        run: |
+          echo "Текущая версия: ${{ steps.version_check.outputs.version }}"
+          echo "Сравнение с предыдущей версией..."
+          if [ -f last_version.txt ]; then
+            last=$(cat last_version.txt)
+            echo "Последняя версия: $last"
+            if [ "$last" = "${{ steps.version_check.outputs.version }}" ]; then
+              echo "Версия не изменилась. Прерывание."
+              exit 0
+            fi
+          fi
+
+      - name: Редактирование smali
+        run: |
+          sed -i '/\.method public final D()Z/,/\.end method/c\
+.method public final D()Z\n    .locals 0\n\n    const/4 p0, 0x1\n\n    return p0\n.end method' anixart/smali_classes2/com/swiftsoft/anixartd/Prefs.smali
+
+      - name: Сборка APK
+        run: |
+          java -jar apktool.jar b anixart -o build.apk
+          zipalign -v 4 build.apk build_aligned.apk
+
+      - name: Подпись APK
+        run: |
+          echo "dinaco" > keystore.pass
+          apksigner sign --ks dinaco --ks-pass file:keystore.pass --key-pass file:keystore.pass --v1-signing-enabled true --v2-signing-enabled true build_aligned.apk
+
+      - name: Проверка APK
+        run: |
+          apksigner verify build_aligned.apk
+
+      - name: Сохранение новой версии
+        run: |
+          echo "${{ steps.version_check.outputs.version }}" > last_version.txt
+
+      - name: Загрузка артефакта
+        uses: actions/upload-artifact@v3
+        with:
+          name: anixart.apk
+          path: build_aligned.apk
